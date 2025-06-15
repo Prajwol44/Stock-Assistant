@@ -3,6 +3,8 @@ import yfinance as yf
 import plotly.graph_objs as go
 import pandas as pd
 from datetime import datetime
+from utils import NewsDataFetcher
+
 
 # Page configuration
 st.set_page_config(
@@ -31,6 +33,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# API key for NewsAPI
+NEWS_API_KEY = "b7e9bccfd09d4d1e9a797ae994045e73"  # Replace with your actual API key
+news_fetcher = NewsDataFetcher(api_key=NEWS_API_KEY)
+
 # Title and description
 st.title("AI Stock Market Analyst")
 
@@ -53,6 +59,10 @@ with st.sidebar:
     st.header("🔍 Search Parameters")
     ticker = st.text_input("Stock Ticker", "AAPL").upper()
     
+    if not ticker.endswith(".NS") and not ticker.endswith(".BO") and not ticker.isalpha():
+        st.warning("⚠️ Invalid ticker format. Use symbols like AAPL (US), INFY.NS (India).")
+        st.stop()
+
     # Time frame selector dropdown
     selected_label = st.selectbox(
         "Chart Time Frame",
