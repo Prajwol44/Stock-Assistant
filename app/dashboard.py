@@ -75,6 +75,11 @@ with st.sidebar:
 # Main content
 if ticker:
     try:
+        # Determine currency based on ticker suffix
+        is_indian_stock = ticker.endswith(".NS") or ticker.endswith(".BO")
+        currency_symbol = "₹" if is_indian_stock else "$"
+        currency_text = "INR" if is_indian_stock else "USD"
+        
         stock = yf.Ticker(ticker)
         hist = stock.history(period=time_frame)
         
@@ -87,13 +92,29 @@ if ticker:
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Company", info.get('shortName', 'N/A'))
         col2.metric("Sector", info.get('sector', 'N/A'))
+        
         current_price = info.get('currentPrice', info.get('regularMarketPrice', hist['Close'][-1]))
         prev_close = info.get('previousClose', hist['Close'][-2])
         price_change = ((current_price - prev_close) / prev_close) * 100
-        col3.metric("Current Price", f"${current_price:,.2f}", 
+        
+        # Format price with appropriate currency
+        col3.metric("Current Price", f"{currency_symbol}{current_price:,.2f}", 
                    f"{price_change:.2f}%", 
                    delta_color="inverse")
-        col4.metric("Market Cap", f"${info.get('marketCap', 'N/A'):,}")
+        
+        # Format market cap with appropriate currency and units
+        market_cap = info.get('marketCap', None)
+        if market_cap:
+            if is_indian_stock:
+                # Convert to crores for Indian stocks
+                market_cap_cr = market_cap / 10000000
+                col4.metric("Market Cap", f"{currency_symbol}{market_cap_cr:,.2f} Cr")
+            else:
+                # Convert to billions for international stocks
+                market_cap_bn = market_cap / 1000000000
+                col4.metric("Market Cap", f"{currency_symbol}{market_cap_bn:,.2f} B")
+        else:
+            col4.metric("Market Cap", "N/A")
         
         # Tab layout
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Charts", "📈 Technical Analysis", "🗞️ News & Sentiment", "💡 AI Insights"])
@@ -131,7 +152,7 @@ if ticker:
             fig.update_layout(
                 title=f'{ticker} Price Movement - {selected_label}',
                 xaxis_title='Date',
-                yaxis_title='Price (USD)',
+                yaxis_title=f'Price ({currency_text})',
                 template='plotly_dark',
                 hovermode='x unified'
             )
@@ -180,8 +201,15 @@ if ticker:
             
             st.subheader("Key Technical Metrics")
             cols = st.columns(3)
-            cols[0].metric("52W High", f"${info.get('fiftyTwoWeekHigh', 'N/A'):.2f}")
-            cols[1].metric("52W Low", f"${info.get('fiftyTwoWeekLow', 'N/A'):.2f}")
+            
+            # Format 52-week high/low with appropriate currency
+            fifty_two_high = info.get('fiftyTwoWeekHigh', None)
+            fifty_two_low = info.get('fiftyTwoWeekLow', None)
+            
+            cols[0].metric("52W High", 
+                          f"{currency_symbol}{fifty_two_high:,.2f}" if fifty_two_high else "N/A")
+            cols[1].metric("52W Low", 
+                          f"{currency_symbol}{fifty_two_low:,.2f}" if fifty_two_low else "N/A")
             cols[2].metric("Volatility (Beta)", info.get('beta', 'N/A'))
         
         with tab3:  # News & Sentiment
@@ -227,12 +255,14 @@ if ticker:
             # Placeholder for ML predictions
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown("""
+                # Format prediction with appropriate currency
+                pred_price = 152.34 if currency_symbol == "$" else 152.34 * 75  # Simple conversion for demo
+                st.markdown(f"""
                 <div style="background:#1a1d29; padding:20px; border-radius:10px; height:250px;">
                     <h4>Price Forecast</h4>
                     <p>LSTM neural network prediction:</p>
                     <div style="margin-top:30px; text-align:center;">
-                        <h2 class="positive">↑ $152.34</h2>
+                        <h2 class="positive">↑ {currency_symbol}{pred_price:,.2f}</h2>
                         <p>(+3.2% in 7 days)</p>
                     </div>
                 </div>
@@ -273,4 +303,4 @@ if ticker:
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
 else:
-    st.info("Enter a stock ticker symbol to begin analysis (e.g. AAPL, TSLA, MSFT)")
+    st.info("Enter a stock ticker symbol to begin analysis (e.g. AAPL, TSLA, MSFT, RELIANCE.NS)")
